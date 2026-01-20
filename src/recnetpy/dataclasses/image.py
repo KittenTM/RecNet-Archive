@@ -29,11 +29,11 @@ class Image(BaseDataClass['ImageResponse']):
     #: This is an image's unique identifier.
     id: int
     #: This is the type of image which has the possible value of ``[None, 'Share Camera', 'Outfit Thumbnail', 'Room Thumbnail', 'Profile Thumbnail', 'Invention Thumbnail', 'Player Event Thumbnail', 'Room Load Screen']``.
-    type: str
+    #type: str
     #: This is the visibilty of the image which has the possible value of ``['Private', 'Public', 'Unlisted']``.
-    accessibility: str
+    #accessibility: str
     #: This is true if the accessiblity of the image is fixed, false if its able to able to be changed.
-    accessibility_locked: bool
+    #accessibility_locked: bool
     #: This is the file name of the image itself.
     image_name: str
     #: This is the description of the image.
@@ -75,16 +75,17 @@ class Image(BaseDataClass['ImageResponse']):
         """
         self.data = data
         self.id = data['Id']
-        self.type = IMAGE_TYPE.get(data['Type'], "Unknown")
-        self.accessibility = ACCESSIBILITY_DICT.get(data['Accessibility'], "Unknown")
-        self.accessibility_locked = data['AccessibilityLocked']
+        #self.type = IMAGE_TYPE.get(data['Type'], "Unknown")
+        #self.accessibility = ACCESSIBILITY_DICT.get(data['Accessibility'], "Unknown")
+        #self.accessibility_locked = data['AccessibilityLocked']
         self.image_name = data['ImageName']
         self.description = data['Description']
         self.player_id = data['PlayerId']
-        self.tagged_player_ids = data['TaggedPlayerIds']
+        #self.tagged_player_ids = data['TaggedPlayerIds']
+        self.tagged_player_ids = []
         self.room_id = data['RoomId']
         self.event_id = data['PlayerEventId']
-        self.created_at = date_to_unix(data['CreatedAt'])
+        self.created_at = date_to_unix(data['CreatedAt'], new=False)
         self.cheer_count = data['CheerCount']
         self.comment_count = data['CommentCount']
 
@@ -162,7 +163,7 @@ class Image(BaseDataClass['ImageResponse']):
         """        
         if self.cheer_count == 0: return []
         if self.cheer_player_ids is None or force:
-            data: 'Response[List[int]]' = await self.rec_net.api.images.v1(self.id).cheers.make_request('get')
+            data: 'Response[List[int]]' = await self.rec_net.images(self.id).cheers.make_request('get')
             self.cheer_player_ids = data.data           
         return self.cheer_player_ids
 
@@ -176,7 +177,7 @@ class Image(BaseDataClass['ImageResponse']):
         """
         if self.comment_count == 0: return []
         if self.comments is None or force:
-            data: 'Response[List[CommentResponse]]' = await self.rec_net.api.images.v1(self.id).comments.make_request('get')
+            data: 'Response[List[CommentResponse]]' = await self.rec_net.images(self.id).comments.make_request('get')
             self.comments = Comment.create_from_list(data.data)
         return self.comments
 
@@ -211,6 +212,6 @@ class Image(BaseDataClass['ImageResponse']):
                 player = self.client.accounts.create_dataclass(comment.player_id)
                 comment.player = player
                 players[comment.player_id] = player
-            data: 'Response[List[AccountResponse]]' = await self.rec_net.accounts.account.bulk.make_request('post', body = {id: players.keys})
+            data: 'Response[List[AccountResponse]]' = await self.rec_net.accounts.bulk.make_request('post', body = {id: players.keys})
             for data_response in data.data: players.get(data_response['accountId']).patch_data(data_response)
         return self.comments

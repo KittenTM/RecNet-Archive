@@ -16,15 +16,15 @@ class AccountResponse(TypedDict):
         - GET https://apim.rec.net/public/accounts/account/search?name={Search_Query}
         - POST https://apim.rec.net/public/accounts/account/bulk
     """
-    accountId: int
-    username: str
-    displayName: str
-    profileImage: str # Located at https://img.rec.net/:imageName
-    isJunior: bool
-    platforms: int # Bitmask 2^N = ['Steam', 'Meta', 'PlayStation', 'Xbox', 'RecNet', 'iOS', 'Android', 'Standalone']
-    personalPronouns: int # Bitmask 2^N = ['She / her', 'He / him', 'They / them', 'Ze / hir', 'Ze / zir', 'Xe / xem']
-    identityFlags: int # Bitmask 2^N = ['LGBTQIA', 'Transgender', 'Bisexual', 'Lesbian', 'Pansexual', 'Asexual', 'Intersex', 'Genderqueer', 'Nonbinary', 'Aromantic']
-    createdAt: str
+    AccountId: int
+    Username: str
+    DisplayName: str
+    ProfileImage: str # Located at https://img.rec.net/:imageName
+    #IsJunior: bool
+    Platforms: int # Bitmask 2^N = ['Steam', 'Meta', 'PlayStation', 'Xbox', 'RecNet', 'iOS', 'Android', 'Standalone']
+    PersonalPronouns: int # Bitmask 2^N = ['She / her', 'He / him', 'They / them', 'Ze / hir', 'Ze / zir', 'Xe / xem']
+    IdentityFlags: int # Bitmask 2^N = ['LGBTQIA', 'Transgender', 'Bisexual', 'Lesbian', 'Pansexual', 'Asexual', 'Intersex', 'Genderqueer', 'Nonbinary', 'Aromantic']
+    CreatedAt: str
 
 class CommentResponse(TypedDict):
     """
@@ -67,19 +67,19 @@ class EventResponse(TypedDict):
     CreatorPlayerId: int
     ImageName: Optional[str]
     RoomId: int
-    SubRoomId: Optional[int]
+    #SubRoomId: Optional[int]
     ClubId: Optional[int]
     Name: str
     Description: str
     StartTime: str
     EndTime: str
     AttendeeCount: int
-    State: int
-    Accessibility: int # 0 = private, 1 = public, 2 = unlisted 
-    IsMultiInstance: bool
-    SupportMultiInstanceChat: bool
-    DefaultBroadcastPermissions: int 
-    CanRequestBroadcastPermissions: int
+    #State: int
+    #Accessibility: int # 0 = private, 1 = public, 2 = unlisted 
+    #IsMultiInstance: bool
+    #SupportMultiInstanceChat: bool
+    #DefaultBroadcastPermissions: int 
+    #CanRequestBroadcastPermissions: int
 
 class ImageResponse(TypedDict):
     """
@@ -95,9 +95,9 @@ class ImageResponse(TypedDict):
         - POST https://apim.rec.net/public/apis/api/images/v3/bulk
     """
     Id: int
-    Type: int
-    Accessibility: int # 0 = private, 1 = public
-    AccessibilityLocked: bool
+    #Type: int
+    #Accessibility: int # 0 = private, 1 = public
+    #AccessibilityLocked: bool
     ImageName: str
     Description: Optional[str]
     PlayerId: int
@@ -282,6 +282,7 @@ class RoomResponse(RoomResponseOptionals):
     MinLevel: int
     CreatedAt: str
     Stats: Stats
+    BoostCount: int
 
 class RoomSearchResponse(TypedDict):
     """

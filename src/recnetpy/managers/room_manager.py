@@ -59,11 +59,13 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :param include: An integer that add additional information to the response.
         :return: An room object representing the data or nothing if not found. 
         """
-  
-        if isinstance(include, list):
-            include = sum_enum_list(include)                
-        data: 'Response[RoomResponse]' = await self.rec_net.rooms.rooms.make_request('get', params = {'name': name, 'include': include})
-        if data.data: return self.create_dataclass(data.data['RoomId'], data.data)
+        data: 'Response[RoomResponse]' = await self.rec_net.rooms.bulk.make_request('get', params = {'name': name})
+        if data.success and data.data:
+            room_data = data.data[0]
+            if include:
+                data: 'Response[RoomResponse]' = await self.rec_net.rooms(room_data['RoomId']).make_request('get', params = {"include": include})
+                room_data = data.data
+            return self.create_dataclass(room_data, room_data)
         return None
 
     async def fetch(self, id: int, include: int | List[RoomInclude] = 0) -> 'Room':
@@ -88,10 +90,8 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :param include: An integer that add additional information to the response.
         :return: An room object representing the data. 
         """
-        if isinstance(include, list):
-            include = sum_enum_list(include)     
-        data: 'Response[RoomResponse]' = await self.rec_net.rooms.rooms(id).make_request('get', params = {'include': include})
-        if data.data: return self.create_dataclass(data.data['RoomId'], data.data)
+        data: 'Response[RoomResponse]' = await self.rec_net.rooms(id).make_request('get', params = {'include': include})
+        if data.success: return self.create_dataclass(data.data['RoomId'], data.data)
         return None
 
     async def get_many(self, names: List[str]) -> List['Room']:
@@ -104,7 +104,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :return: A list of room objects. 
         """
         bulk = stringify_bulk(names)
-        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.rooms.bulk.make_request('post', body = {'name': bulk})
+        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.bulk.make_request('post', body = {'name': bulk})
         return self.create_from_data_list(data.data)
 
     async def fetch_many(self, ids: List[int]) -> List['Room']:
@@ -116,7 +116,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :param ids: A list of ids.
         :return: A list of room objects. 
         """
-        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.rooms.bulk.make_request('post', body = {'id': ids})
+        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.bulk.make_request('post', body = {'id': ids})
         return self.create_from_data_list(data.data)
 
     async def search(self, query: str, take: int = 16, skip: int = 0) -> List['Room']:
@@ -135,7 +135,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
             'take': take,
             'skip': skip
         }          
-        data: 'Response[RoomSearchResponse]' = await self.rec_net.rooms.rooms.search.make_request('get', params = params)
+        data: 'Response[RoomSearchResponse]' = await self.rec_net.rooms.search.make_request('get', params = params)
         return self.create_from_data_list(data.data['Results'])
 
     async def created_by(self, id: int) -> List['Room']:
@@ -146,7 +146,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :param id: An account id.
         :return: A list of room objects.
         """
-        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.rooms.createdby(id).make_request('get')
+        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.createdby(id).make_request('get')
         return self.create_from_data_list(data.data)
 
     async def owned_by(self, id: int) -> List['Room']:
@@ -157,7 +157,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
         :param id: An account id.
         :return: A list of room objects.
         """
-        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.rooms.ownedby(id).make_request('get')
+        data: 'Response[List[RoomResponse]]' = await self.rec_net.rooms.ownedby(id).make_request('get')
         return self.create_from_data_list(data.data)
     
     async def showcased_by(self, id: int) -> List['Room']:
@@ -185,7 +185,7 @@ class RoomManager(BaseManager['Room', 'RoomResponse']):
             'take': take,
             'skip': skip
         }  
-        data: 'Response[RoomSearchResponse]' = await self.rec_net.rooms.rooms.hot.make_request('get', params = params)
+        data: 'Response[RoomSearchResponse]' = await self.rec_net.rooms.hot.make_request('get', params = params)
         return self.create_from_data_list(data.data['Results'])
 
     def create_dataclass(self, id: int, data: Optional['RoomResponse'] = None) -> 'Room':

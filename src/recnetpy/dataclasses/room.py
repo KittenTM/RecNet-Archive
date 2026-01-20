@@ -102,6 +102,8 @@ class Room(BaseDataClass['RoomResponse']):
     visitor_count: int
     #: This in the number of times players have joined the room.
     visit_count: int
+    #: This is the amount of boosts the room has.
+    boost_count: int
     #: This is an account object which represents the player who created the room.
     creator_account: Optional['Account'] = None
     #: This a list of subroom objects which represents the room's subrooms.
@@ -133,22 +135,22 @@ class Room(BaseDataClass['RoomResponse']):
         self.data = data
         self.id = data["RoomId"]
         self.is_dorm = data["IsDorm"]
-        self.max_player_calculation_mode = MAX_PLAYER_CALCULATION_MODE.get(data["MaxPlayerCalculationMode"], "Unknown")
+        #self.max_player_calculation_mode = MAX_PLAYER_CALCULATION_MODE.get(data["MaxPlayerCalculationMode"], "Unknown")
         self.max_players = data["MaxPlayers"]
-        self.cloning_allowed = data["CloningAllowed"]
-        self.disable_mic_auto_mute = data["DisableMicAutoMute"]
-        self.disable_room_comments = data["DisableRoomComments"]
-        self.encrypted_voice_chat = data["EncryptVoiceChat"]
-        self.voice_moderated = data["ToxmodEnabled"]
-        self.load_screen_locked = data["LoadScreenLocked"]
+        #self.cloning_allowed = data["CloningAllowed"]
+        #self.disable_mic_auto_mute = data["DisableMicAutoMute"]
+        #self.disable_room_comments = data["DisableRoomComments"]
+        #self.encrypted_voice_chat = data["EncryptVoiceChat"]
+        #self.voice_moderated = data["ToxmodEnabled"]
+        #self.load_screen_locked = data["LoadScreenLocked"]
         self.name = data["Name"]
         self.description = data["Description"]
         self.image_name = data["ImageName"]
         self.warnings = bitmask_decode(data["WarningMask"], WARNING_MASK_LIST)
         self.custom_warning = data["CustomWarning"]
         self.creator_account_id = data["CreatorAccountId"]
-        self.state = ROOM_MODERATION_STATE.get(data["State"], "Unknown")
-        self.accessibility = ACCESSIBILITY_DICT.get(data["Accessibility"], "Unknown")
+        #self.state = ROOM_MODERATION_STATE.get(data["State"], "Unknown")
+        #self.accessibility = ACCESSIBILITY_DICT.get(data["Accessibility"], "Unknown")
         self.supports_level_voting = data["SupportsLevelVoting"]
         self.is_rro = data["IsRRO"]
         self.supports_screens = data["SupportsScreens"]
@@ -164,6 +166,7 @@ class Room(BaseDataClass['RoomResponse']):
         self.favorite_count = data["Stats"]["FavoriteCount"]
         self.visitor_count = data["Stats"]["VisitorCount"]
         self.visit_count = data["Stats"]["VisitCount"]
+        self.boost_count = data["BoostCount"]
         self.subrooms = SubRoom.create_from_list(data.get("SubRooms"))
         self.roles = Role.create_from_list(data.get("Roles"))
         self.tags = Tag.create_from_list(data.get("Tags"))
@@ -221,6 +224,7 @@ class Room(BaseDataClass['RoomResponse']):
 
         :return: A list of role objects, or None if roles is None 
         """
+
         if self.roles is None: return None
         roles = self.roles
         accounts: Dict[int, Account] = {}
@@ -228,7 +232,7 @@ class Room(BaseDataClass['RoomResponse']):
             account = self.client.accounts.create_dataclass(role.account_id)
             role.account = account
             accounts[role.account_id] = account
-        data: 'Response[List[AccountResponse]]' = await self.rec_net.accounts.account.bulk.make_request('post', body = {"id": accounts.keys()})
+        data: 'Response[List[AccountResponse]]' = await self.rec_net.accounts.bulk.make_request('post', body = {"id": accounts.keys()})
         for data_response in data.data: accounts.get(data_response['accountId']).patch_data(data_response)
 
         # Search for deleted accounts

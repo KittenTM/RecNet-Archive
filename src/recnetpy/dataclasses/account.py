@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from .base import BaseDataClass
 from .progression import Progression
 from ..misc import date_to_unix, bitmask_decode
+from ..rest.exceptions import RateLimited
 
 if TYPE_CHECKING:
     from . import Event, Image, Room
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from ..rest import Response
 
 
-PLATFORM_LIST: List[str] = ['Steam', 'Meta', 'PlayStation', 'Xbox', 'HeadlessBot', 'iOS', 'Android', 'Standalone', 'Pico']
+PLATFORM_LIST: List[str] = ['Steam', 'Meta', 'PlayStation', 'Xbox', 'RecNet', 'iOS', 'Android', 'Standalone', 'Pico', 'Nintendo']
 PERSONAL_PRONOUNS_LIST: List[str] = ['She / her', 'He / him', 'They / them', 'Ze / hir', 'Ze / zir', 'Xe / xem']
 IDENTITY_FLAGS_LIST: List[str] = ['LGBTQIA', 'Transgender', 'Bisexual', 'Lesbian', 'Pansexual', 'Asexual', 'Intersex', 'Genderqueer', 'Nonbinary', 'Aromantic']
 
@@ -25,10 +26,12 @@ class Account(BaseDataClass['AccountResponse']):
     username: str
     #: This is what appears in bold above the username on an account's page on RecNet. The display name is not unique unlike the username.
     display_name: str
+    #: This is the RR+ exclusive display emoji.
+    display_emoji: Optional[str] = None
     #: This is the file name of an account's profile picture.  
     profile_image: str
     #: This is true if the account is a junior account, false if the account is a non-junior account. 
-    is_junior: bool
+    # is_junior: bool DEPRECATED
     #: This is a list of platforms a user plays on. It has these possible values ``['Steam', 'Meta', 'PlayStation', 'Xbox', 'RecNet', 'iOS', 'Android', 'Standalone']``.   
     platforms: List[str]
     #: This is the list of pronouns a user goes by. It has these possible values ``['She / her', 'He / him', 'They / them', 'Ze / hir', 'Ze / zir', 'Xe / xem']``.  
@@ -73,11 +76,12 @@ class Account(BaseDataClass['AccountResponse']):
         self.display_name = data['displayName']
         self.profile_image = data['profileImage']
         self.banner_image = data.get("bannerImage", None)
-        self.is_junior = bool(data['isJunior'])
+        self.display_emoji = data.get("displayEmoji", None)
+        #self.is_junior = bool(data['isJunior'])
         self.platforms = bitmask_decode(data['platforms'], PLATFORM_LIST)
         self.personal_pronouns = bitmask_decode(data['personalPronouns'], PERSONAL_PRONOUNS_LIST)
         self.identity_flags = bitmask_decode(data['identityFlags'], IDENTITY_FLAGS_LIST)
-        self.created_at = date_to_unix(data['createdAt'])
+        self.created_at = date_to_unix(data['createdAt'], new=False)
 
     async def get_events(self, take: int = 16, skip: int = 0, force: bool = False) -> List['Event']:
         """
@@ -167,8 +171,11 @@ class Account(BaseDataClass['AccountResponse']):
         :return: The player's bio.
         """
         if self.bio is None or force:
-            data: 'Response[BioResponse]' = await self.rec_net.accounts(self.id).bio.make_request('get')
-            self.bio = data.data['bio']
+            try:
+                data: 'Response[BioResponse]' = await self.rec_net.accounts(self.id).bio.make_request('get')
+                self.bio = data.data['bio']
+            except RateLimited:
+                self.bio = "Unable to fetch bio!"
         return self.bio
 
     async def get_level(self, force: bool = False) -> 'Progression':
@@ -180,7 +187,7 @@ class Account(BaseDataClass['AccountResponse']):
         :return: This player's level.
         """
         if self.level is None or force:
-            data: 'Response[List[ProgressionResponse]]' = await self.rec_net.api.players.v2.progression.bulk.make_request('post', body = {'id': [self.id]})
+            data: 'Response[List[ProgressionResponse]]' = await self.rec_net.apim.players.progression.bulk.make_request('post', body = {'id': [self.id]})
             self.level = Progression(data.data[0])
         return self.level
 
@@ -193,8 +200,12 @@ class Account(BaseDataClass['AccountResponse']):
         :return: This player's subscriber count.
         """
         if self.subscriber_count is None or force:
+            #try:
             data: 'Response[int]' = await self.rec_net.clubs.subscription.subscribercount(self.id).make_request('get')
             self.subscriber_count = data.data
+            #except:
+            #    self.subscriber_count = -1
+
         return self.subscriber_count
 
     async def get_is_influencer(self, force: bool = False) -> bool:
@@ -206,6 +217,6 @@ class Account(BaseDataClass['AccountResponse']):
         :return: This player's subscriber count.
         """
         if self.is_influencer is None or force:
-            data: 'Response[bool]' = await self.rec_net.api.influencerpartnerprogram.isinfluencer.make_request('get', params = {'accountId': self.id})
+            data: 'Response[bool]' = await self.rec_net.apim.influencerpartnerprogram.isinfluencer.make_request('get', params = {'accountId': self.id})
             self.is_influencer = data.data
         return self.is_influencer 
