@@ -7,7 +7,7 @@ from ..rest.exceptions import RateLimited
 
 if TYPE_CHECKING:
     from . import Event, Image, Room
-    from ..misc.api_responses import AccountResponse, ProgressionResponse, BioResponse, RoomResponse
+    from ..misc.api_responses import AccountResponse, ProgressionResponse, BioResponse
     from ..rest import Response
 
 
@@ -17,7 +17,7 @@ IDENTITY_FLAGS_LIST: List[str] = ['LGBTQIA', 'Transgender', 'Bisexual', 'Lesbian
 
 class Account(BaseDataClass['AccountResponse']):
     """
-    This dataclass represents a RecNet account. 
+    This dataclass represents a Rec Room account. 
     """
 
     #: This is an account's unique identifier
