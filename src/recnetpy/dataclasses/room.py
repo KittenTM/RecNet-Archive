@@ -102,6 +102,8 @@ class Room(BaseDataClass['RoomResponse']):
     visitor_count: int
     #: This in the number of times players have joined the room.
     visit_count: int
+    #: This is the amount of boosts the room has.
+    boost_count: int
     #: This is an account object which represents the player who created the room.
     creator_account: Optional['Account'] = None
     #: This a list of subroom objects which represents the room's subrooms.
@@ -164,6 +166,7 @@ class Room(BaseDataClass['RoomResponse']):
         self.favorite_count = data["Stats"]["FavoriteCount"]
         self.visitor_count = data["Stats"]["VisitorCount"]
         self.visit_count = data["Stats"]["VisitCount"]
+        self.boost_count = data["BoostCount"]
         self.subrooms = SubRoom.create_from_list(data.get("SubRooms"))
         self.roles = Role.create_from_list(data.get("Roles"))
         self.tags = Tag.create_from_list(data.get("Tags"))

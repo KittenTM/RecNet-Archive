@@ -282,6 +282,7 @@ class RoomResponse(RoomResponseOptionals):
     MinLevel: int
     CreatedAt: str
     Stats: Stats
+    BoostCount: int
 
 class RoomSearchResponse(TypedDict):
     """
