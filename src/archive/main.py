@@ -85,6 +85,7 @@ async def main():
                 print(f"Sleeping {SLEEP_BETWEEN_BATCHES}s...")
                 await asyncio.sleep(SLEEP_BETWEEN_BATCHES)
 
+    # todo: move to psql
     with open("archive.json", "w") as f:
         json.dump(all_results, f, indent=4)
     
