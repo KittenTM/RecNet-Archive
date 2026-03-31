@@ -6,6 +6,7 @@ from tabulate import tabulate
 from profiles.bio import fetch_bio
 from profiles.subscriberCount import fetch_subscriber_count
 from profiles.info import fetch_bulk_info 
+from profiles.images import fetch_player_images
 
 # recnet ratelimits
 MAX_CONCURRENT_REQUESTS = 20
@@ -26,6 +27,7 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
     async with semaphore:
         b_status, b_data = await fetch_bio(session, account_id)
         s_status, s_data = await fetch_subscriber_count(session, account_id)
+        i_status, i_images = await fetch_player_images(session, account_id)
 
         info = info_dict.get(account_id, {})
         
@@ -44,16 +46,26 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
         bio_preview = (bio_text[:25] + "..") if len(bio_text) > 25 else bio_text
         bio_preview = bio_preview.replace("\n", " ")
 
+        img_count = len(i_images) if isinstance(i_images, list) else 0
+        latest_img = "N/A"
+        if img_count > 0:
+            first_img = i_images
+            if isinstance(first_img, dict):
+                latest_desc = first_img.get("Description") or "No Desc"
+                latest_img = (latest_desc[:15] + "..") if len(latest_desc) > 15 else latest_desc
+                latest_img = latest_img.replace("\n", " ")
+
         row = [
             account_id, username, display, junior, 
-            platforms, pronouns, created, subs, bio_preview
+            platforms, pronouns, created, subs, img_count, latest_img, bio_preview
         ]
         
         result = {
             "id": account_id,
             "info": info if info else None,
             "bio": b_data, 
-            "subs": s_data
+            "subs": s_data,
+            "images": i_images
         }
         
         return result, row
@@ -65,7 +77,7 @@ async def main():
     
     headers = [
         "ID", "Username", "Display Name", "Jr", 
-        "Plat", "Pronoun", "Created", "Subs", "Bio Preview"
+        "Plat", "Pronoun", "Created", "Subs", "Imgs", "Latest", "Bio Preview"
     ]
 
     async with aiohttp.ClientSession(headers=HEADERS) as session:
