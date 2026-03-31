@@ -2,18 +2,16 @@ import asyncio
 import aiohttp
 import json
 from tabulate import tabulate
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import recnetpy
 
 from profiles.bio import fetch_bio
 from profiles.subscriberCount import fetch_subscriber_count
+from profiles.info import fetch_bulk_info 
 
-# recnet no api key ratelimits
+# recnet ratelimits
 MAX_CONCURRENT_REQUESTS = 20
 BATCH_SIZE = 20
 SLEEP_BETWEEN_BATCHES = 11
+# only here for testing
 START_ID = 0
 END_ID = 50
 
@@ -24,54 +22,73 @@ HEADERS = {
     "Origin": "https://rec.net",
 }
 
-async def fetch_account(session, account_id, semaphore):
+async def fetch_remaining_data(session, account_id, info_dict, semaphore):
     async with semaphore:
         b_status, b_data = await fetch_bio(session, account_id)
         s_status, s_data = await fetch_subscriber_count(session, account_id)
 
-        row = [account_id, b_status, s_status, s_data if s_data is not None else "N/A"]
+        info = info_dict.get(account_id, {})
         
-        if b_status == 429 or s_status == 429:
-            return "RATE_LIMIT", row
+        username = info.get("username", "N/A")
+        display = info.get("displayName", "N/A")
+        junior = "Yes" if info.get("isJunior") else "No"
+        platforms = info.get("platforms", 0)
+        pronouns = info.get("personalPronouns", 0)
+        created = info.get("createdAt", "N/A")[:10] if info.get("createdAt") else "N/A"
+        subs = s_data if s_data is not None else "N/A"
 
-        return {"id": account_id, "bio": b_data, "subs": s_data}, row
+        bio_text = b_data.get("bio", "") if isinstance(b_data, dict) else ""
+        bio_preview = (bio_text[:25] + "..") if len(bio_text) > 25 else bio_text
+        bio_preview = bio_preview.replace("\n", " ")
+
+        row = [
+            account_id, username, display, junior, 
+            platforms, pronouns, created, subs, bio_preview
+        ]
+        
+        result = {
+            "id": account_id,
+            "info": info if info else None,
+            "bio": b_data, 
+            "subs": s_data
+        }
+        
+        return result, row
 
 async def main():
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     all_results = []
-    table_data = []
+    full_table = []
     
+    headers = [
+        "ID", "Username", "Display Name", "Jr", 
+        "Plat", "Pronoun", "Created", "Subs", "Bio Preview"
+    ]
+
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         for i in range(START_ID, END_ID + 1, BATCH_SIZE):
-            batch_end = min(i + BATCH_SIZE, END_ID + 1)
-            tasks = [fetch_account(session, account_id, semaphore) for account_id in range(i, batch_end)]
+            batch_ids = list(range(i, min(i + BATCH_SIZE, END_ID + 1)))
             
+            print(f"\n--- Processing Batch {i} to {batch_ids[-1]} ---")
+            info_status, info_map = await fetch_bulk_info(session, batch_ids)
+
+            tasks = [fetch_remaining_data(session, aid, info_map, semaphore) for aid in batch_ids]
             batch_output = await asyncio.gather(*tasks)
+
+            for res_dict, row in batch_output:
+                all_results.append(res_dict)
+                full_table.append(row)
             
-            for result, row in batch_output:
-                table_data.append(row)
-                if result != "RATE_LIMIT":
-                    all_results.append(result)
-            
-            print(f"\n--- Batch {i} to {batch_end-1} Complete ---")
-            print(tabulate(table_data[-BATCH_SIZE:], 
-                           headers=["Account ID", "Bio Status", "Sub Status", "Subs"], 
-                           tablefmt="grid"))
-            
-            if batch_end <= END_ID:
+            print(tabulate(full_table[-len(batch_ids):], headers=headers, tablefmt="grid"))
+
+            if i + BATCH_SIZE <= END_ID:
                 print(f"Sleeping {SLEEP_BETWEEN_BATCHES}s...")
                 await asyncio.sleep(SLEEP_BETWEEN_BATCHES)
 
-    print("\n" + "="*50)
-    print("FINAL SCRAPE SUMMARY")
-    print("="*50)
-    print(tabulate(table_data, headers=["ID", "Bio", "Sub", "Count"], tablefmt="pretty"))
-
-    # todo: rewrite to use psql
     with open("archive.json", "w") as f:
-        json.dump([r for r in all_results if isinstance(r, dict)], f, indent=4)
+        json.dump(all_results, f, indent=4)
     
-    print(f"\nFinished! Data saved to archive.json")
+    print(f"\nFinished! Total accounts archived: {len(all_results)}")
 
 if __name__ == "__main__":
     asyncio.run(main())
