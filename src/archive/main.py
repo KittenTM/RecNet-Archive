@@ -29,6 +29,7 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
 
         info = info_dict.get(account_id, {})
         
+        # Extracting fields
         username = info.get("username", "N/A")
         display = info.get("displayName", "N/A")
         junior = "Yes" if info.get("isJunior") else "No"
@@ -36,8 +37,10 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
         pronouns = info.get("personalPronouns", 0)
         created = info.get("createdAt", "N/A")[:10] if info.get("createdAt") else "N/A"
         subs = s_data if s_data is not None else "N/A"
-
-        bio_text = b_data.get("bio", "") if isinstance(b_data, dict) else ""
+        if isinstance(b_data, dict):
+            bio_text = b_data.get("bio") or ""
+        else:
+            bio_text = ""
         bio_preview = (bio_text[:25] + "..") if len(bio_text) > 25 else bio_text
         bio_preview = bio_preview.replace("\n", " ")
 
