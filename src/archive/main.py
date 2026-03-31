@@ -1,12 +1,21 @@
 import asyncio
 import aiohttp
 import json
+import os
+from pathlib import Path
 from tabulate import tabulate
+from internetarchive import upload
+from dotenv import load_dotenv
 
 from profiles.bio import fetch_bio
 from profiles.subscriberCount import fetch_subscriber_count
 from profiles.info import fetch_bulk_info 
 from profiles.images import fetch_player_images
+
+load_dotenv()
+IA_ACCESS_KEY = os.getenv("IA_ACCESS_KEY")
+IA_SECRET_KEY = os.getenv("IA_SECRET_KEY")
+IA_IDENTIFIER = os.getenv("IA_IDENTIFIER")
 
 # recnet ratelimits
 MAX_CONCURRENT_REQUESTS = 20
@@ -23,6 +32,23 @@ HEADERS = {
     "Origin": "https://rec.net",
 }
 
+def save_to_folders(base_path, data):
+    acc_id = data["id"]
+    user_dir = Path(base_path) / str(acc_id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(user_dir / "info.json", "w") as f:
+        json.dump(data["info"], f, indent=4)
+    
+    with open(user_dir / "bio.json", "w") as f:
+        json.dump(data["bio"], f, indent=4)
+    
+    with open(user_dir / "images.json", "w") as f:
+        json.dump(data["images"], f, indent=4)
+        
+    with open(user_dir / "stats.json", "w") as f:
+        json.dump({"subscriberCount": data["subs"]}, f, indent=4)
+
 async def fetch_remaining_data(session, account_id, info_dict, semaphore):
     async with semaphore:
         b_status, b_data = await fetch_bio(session, account_id)
@@ -31,7 +57,6 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
 
         info = info_dict.get(account_id, {})
         
-        # Extracting fields
         username = info.get("username", "N/A")
         display = info.get("displayName", "N/A")
         junior = "Yes" if info.get("isJunior") else "No"
@@ -39,6 +64,7 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
         pronouns = info.get("personalPronouns", 0)
         created = info.get("createdAt", "N/A")[:10] if info.get("createdAt") else "N/A"
         subs = s_data if s_data is not None else "N/A"
+        
         if isinstance(b_data, dict):
             bio_text = b_data.get("bio") or ""
         else:
@@ -72,8 +98,8 @@ async def fetch_remaining_data(session, account_id, info_dict, semaphore):
 
 async def main():
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-    all_results = []
     full_table = []
+    base_folder = "archive_data"
     
     headers = [
         "ID", "Username", "Display Name", "Jr", 
@@ -91,8 +117,13 @@ async def main():
             batch_output = await asyncio.gather(*tasks)
 
             for res_dict, row in batch_output:
-                all_results.append(res_dict)
+                info = res_dict.get("info")
+                username = info.get("username", "N/A") if info else "N/A"
+                
                 full_table.append(row)
+
+                if username != "N/A":
+                    save_to_folders(base_folder, res_dict)
             
             print(tabulate(full_table[-len(batch_ids):], headers=headers, tablefmt="grid"))
 
@@ -100,11 +131,7 @@ async def main():
                 print(f"Sleeping {SLEEP_BETWEEN_BATCHES}s...")
                 await asyncio.sleep(SLEEP_BETWEEN_BATCHES)
 
-    # todo: move to psql
-    with open("archive.json", "w") as f:
-        json.dump(all_results, f, indent=4)
-    
-    print(f"\nFinished! Total accounts archived: {len(all_results)}")
+    print("Finished!")
 
 if __name__ == "__main__":
     asyncio.run(main())
