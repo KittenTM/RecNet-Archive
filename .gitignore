@@ -139,5 +139,3 @@ config.json
 unit_tests.py
 .unittests
 unittests/
-
-main.py
